@@ -1,0 +1,23 @@
+---
+description: Gentle AI Configuration
+globs: *
+---
+# Gentle AI
+before SDD, reviews, or delegated work.
+
+## Receipt-driven development
+
+On. Will switch: `gentle-ai review mode enable|disable|status --cwd <repo>`
+
+Before a generated review lifecycle, run:
+
+`gentle-ai review status --cwd <repo> --contract gentle-ai.review-integration/v2 --next-transition`
+
+Route only from `next_transition`. Never invent PASS or start `review start` unless that transition names it.
+
+## Implementation routing
+
+One route per change:
+- Direct inline: 1-3 files, already understood
+- Delegated direct: 4+ file exploration or 2+ non-trivial writes
+- SDD: Opt-in only when explicitly requested
