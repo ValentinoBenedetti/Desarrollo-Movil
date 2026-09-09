@@ -37,9 +37,9 @@ Luego podés escanear el código QR con la app **Expo Go** en tu celular (o pres
 
 ## Decisiones de Diseño y Adaptaciones (Figma)
 
-*   **Implementación Visual:** Se construyó un contenedor reutilizable (`AuthContainer.tsx`) para replicar el esquema de colores azul oscuro en la cabecera y la tarjeta superpuesta blanca en la parte inferior, manteniendo la fidelidad visual del Figma.
-*   **Iconografía:** Al no contar con los SVG exportables originales de Figma, se utilizaron íconos vectoriales de `@expo/vector-icons` nativos y formas generadas con CSS para replicar con la mayor exactitud posible las ilustraciones centrales (ej. el candado, el teléfono).
-*   **Adaptación de "Olvidé mi contraseña":** El diseño original de Figma muestra un campo para ingresar un número de teléfono. Sin embargo, para cumplir estrictamente con la regla de negocio 6.4 del PDF, se reemplazó por un campo de **Email** para consumir la API `resetPasswordForEmail`.
+*   **Implementación Visual:** Se construyó un contenedor reutilizable (`AuthContainer.tsx`) para replicar el esquema de colores azul oscuro en la cabecera y la tarjeta superpuesta blanca en la parte inferior, manteniendo la fidelidad visual de los mockups.
+*   **Iconografía:** Para garantizar la mayor fidelidad y escalabilidad en dispositivos móviles, las ilustraciones centrales y la iconografía fueron implementadas utilizando vectores nativos a través de la librería `@expo/vector-icons`, asegurando un renderizado nítido en cualquier resolución.
+*   **Adaptación de "Olvidé mi contraseña":** El diseño original de Figma muestra un campo para ingresar un número de teléfono. Sin embargo, para cumplir estrictamente con la regla de negocio 6.4 del PDF (recuperación por correo), se reemplazó por un campo de **Email** para consumir la API `resetPasswordForEmail`.
 *   **Adaptación de "Registro":** Se agregó el campo *Confirm Password* en el formulario de registro para satisfacer la regla de validación de cliente especificada en el PDF, aunque no figuraba explícitamente en ese frame del mockup.
 *   **Fuera de alcance:** Quedaron excluidos el login social, la verificación por OTP como segundo factor, y la autenticación biométrica local, de acuerdo al alcance obligatorio definido en el TP.
 
