@@ -23,13 +23,13 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (session && inAuthGroup) {
-      // Si el evento es recuperación de contraseña, dejamos que pase a new-password
-      if (event === 'PASSWORD_RECOVERY') {
+      // Si el evento es recuperación de contraseña o queremos simular la pantalla para la entrega, dejamos que pase a new-password
+      if (event === 'PASSWORD_RECOVERY' || segments[1] === 'new-password') {
         if (segments[1] !== 'new-password') {
           router.replace('/(auth)/new-password');
         }
       } else {
-        // Si el usuario tiene sesión abierta pero está en Login/Registro, lo mandamos al Home
+        // Si el usuario tiene sesión abierta pero está en Login/Registro/etc, lo mandamos al Home
         router.replace('/(tabs)');
       }
     } else if (!session && !inAuthGroup) {
