@@ -1,0 +1,16 @@
+{
+  "name": "network-qos-backend",
+  "version": "1.0.0",
+  "description": "Backend de referencia para test de throughput y telemetría de Network QoS Monitor",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/server.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

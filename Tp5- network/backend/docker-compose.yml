@@ -1,0 +1,11 @@
+services:
+  qos-backend:
+    build: .
+    container_name: qos-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # HTTP (Download & Upload Throughput)
+      - "3001:3001"  # TCP Socket (Echo RTT & Jitter)
+    environment:
+      - PORT=3000
+      - TCP_PING_PORT=3001
