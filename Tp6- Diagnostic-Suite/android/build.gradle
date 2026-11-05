@@ -1,0 +1,45 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.0.21"
+        playServicesLocationVersion = "21.3.0"
+        googlePlayServicesLocationVersion = "21.3.0"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+subprojects { subproject ->
+    subproject.plugins.withId("com.android.library") {
+        def androidExt = subproject.extensions.findByName("android")
+        if (androidExt != null) {
+            androidExt.compileSdkVersion rootProject.ext.compileSdkVersion
+            if (androidExt.hasProperty("buildFeatures")) {
+                androidExt.buildFeatures.buildConfig = true
+            }
+            if (androidExt.namespace == null) {
+                def manifestFile = subproject.file("src/main/AndroidManifest.xml")
+                if (manifestFile.exists()) {
+                    def manifestText = manifestFile.getText("UTF-8")
+                    def matcher = (manifestText =~ /package="([^"]+)"/)
+                    if (matcher.find()) {
+                        androidExt.namespace = matcher.group(1)
+                    }
+                }
+            }
+        }
+    }
+}
