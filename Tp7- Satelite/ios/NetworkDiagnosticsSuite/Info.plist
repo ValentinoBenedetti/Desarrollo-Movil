@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Network Diagnostics Suite</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.fcyt.networkdiagnosticssuite</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is required to scan equipment QR/barcodes and capture georeferenced installation evidence photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>High-precision GPS location is required to georeference field telecom installation reports and photos.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Local network access is required to discover active LAN nodes via UDP/ARP sweep, mDNS/Bonjour, SNMP (UDP/161), and SSH (TCP/22).</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_ssh._tcp</string>
+		<string>_snmp._udp</string>
+		<string>_workstation._tcp</string>
+	</array>
+</dict>
+</plist>
+

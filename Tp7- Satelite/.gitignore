@@ -1,0 +1,17 @@
+node_modules/
+android/build/
+android/app/build/
+android/.gradle/
+android/app/.gradle/
+android/.sdk-shim/
+android/.kotlin/
+android/local.properties
+.idea/
+.vscode/
+ios/Pods/
+ios/build/
+backend-proxy/node_modules/
+backend-proxy/dist/
+.env
+*.apk
+*.aab

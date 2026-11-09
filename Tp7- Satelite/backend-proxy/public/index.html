@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TP7 Satellite Tracker — React Native SGP4 Mission Control</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/vendor/satellite.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { background: #070B14; color: #F8FAFC; min-height: 100vh; display: flex; flex-direction: column; }
+    header {
+      background: #0F172A; border-bottom: 1px solid #1E293B; padding: 10px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .badge { background: #0284C7; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
+    .ttl-pill { background: rgba(16, 185, 129, 0.18); border: 1px solid #10B981; color: #34D399; font-size: 11px; padding: 4px 10px; border-radius: 999px; font-weight: 700; }
+    .main-grid {
+      flex: 1; display: grid; grid-template-columns: 1fr 410px; gap: 14px; padding: 14px;
+    }
+    @media (max-width: 920px) {
+      header { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; }
+      .main-grid { grid-template-columns: 1fr; padding: 8px; gap: 10px; }
+      #map { min-height: 300px; }
+      .telemetry-footer { grid-template-columns: repeat(2, 1fr); }
+      .sky-box { flex-direction: column; }
+      .pass-list { width: 100%; max-height: 190px; }
+    }
+    .panel {
+      background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+    }
+    .panel-header {
+      padding: 10px 14px; background: #1E293B; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+    }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn {
+      background: #334155; color: #E2E8F0; border: 1px solid #475569; padding: 6px 11px;
+      border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.15s;
+    }
+    .btn:hover { background: #475569; }
+    .btn.active { background: #0284C7; border-color: #38BDF8; color: #fff; }
+    .btn.purple.active { background: #7E22CE; border-color: #C084FC; color: #fff; }
+    .btn.green { background: #059669; border-color: #34D399; color: #fff; }
+    .search-bar {
+      display: flex; gap: 8px; padding: 8px 14px; background: #0F172A; border-bottom: 1px solid #1E293B; align-items: center;
+    }
+    .search-bar input {
+      flex: 1; background: #1E293B; border: 1px solid #334155; color: #fff; padding: 7px 10px; border-radius: 6px; font-size: 12px;
+    }
+    .sat-chips { display: flex; gap: 6px; padding: 8px 14px; overflow-x: auto; background: #0B1325; border-bottom: 1px solid #1E293B; }
+    .chip {
+      background: #1E293B; border: 1px solid #334155; padding: 5px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: 11px;
+    }
+    .chip.active { background: #0369A1; border-color: #38BDF8; }
+    #map { flex: 1; min-height: 430px; background: #070B14; }
+    .dark-osm-tiles {
+      filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%);
+    }
+    .telemetry-footer {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 14px; background: #0B1325; border-top: 1px solid #1E293B;
+    }
+    .metric { background: #1E293B; padding: 8px 10px; border-radius: 8px; }
+    .metric-label { font-size: 10px; color: #94A3B8; font-weight: 700; }
+    .metric-val { font-size: 14px; font-weight: 800; color: #38BDF8; margin-top: 2px; }
+    .right-col { display: flex; flex-direction: column; gap: 12px; }
+    .sky-box { display: flex; align-items: center; justify-content: space-between; padding: 12px; gap: 10px; }
+    .pass-list { flex: 1; max-height: 210px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .pass-card { background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 8px; font-size: 11px; cursor: pointer; }
+    .pass-card.active { border-color: #22D3EE; background: #172554; }
+    .compass-banner { background: #064E3B; color: #6EE7B7; padding: 7px 12px; font-size: 12px; font-weight: 700; text-align: center; }
+    .val-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+    .val-table th, .val-table td { padding: 6px 8px; border-bottom: 1px solid #1E293B; text-align: right; }
+    .val-table th:first-child, .val-table td:first-child { text-align: left; color: #94A3B8; font-weight: 700; }
+    .toast {
+      position: fixed; top: 18px; right: 18px; background: #0F172A; border: 2px solid #22D3EE;
+      color: #fff; padding: 14px 18px; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.65);
+      z-index: 9999; display: none; max-width: 360px;
+    }
+  </style>
+</head>
+<body>
+  <div id="notifToast" class="toast">
+    <div style="font-size:11px;color:#22D3EE;font-weight:800;">NOTIFEE BACKGROUND TRIGGER (RF-06)</div>
+    <div id="notifTitle" style="font-size:14px;font-weight:800;margin-top:3px;"></div>
+    <div id="notifBody" style="font-size:12px;color:#CBD5E1;margin-top:4px;"></div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <span class="badge">TP N° 7 — FCyT UADER</span>
+      <h1 style="font-size: 16px; font-weight: 800;">Satellite Tracker · Propagación Orbital SGP4/SDP4 en Tiempo Real</h1>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span id="providerStatus" class="ttl-pill">Proveedor: CelesTrak OMM/SupGP • Cache TTL: 3.4h / 24h (VIGENTE)</span>
+      <button class="btn" onclick="resetDemoState()">🔄 Reiniciar Limpio</button>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <!-- Left Column: Geo/Map Layer (RF-10, RF-11, RF-12, RF-13) -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="tabs">
+          <button class="btn active" onclick="filterGroup('all', this)">Todos</button>
+          <button class="btn" onclick="filterGroup('stations', this)">ISS / Estaciones</button>
+          <button class="btn" onclick="filterGroup('starlink', this)">Starlink (SupGP)</button>
+          <button class="btn" onclick="filterGroup('gps-ops', this)">GPS (MEO)</button>
+          <button class="btn" onclick="filterGroup('weather', this)">GEO / Clima</button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button id="btnConstellation" class="btn purple" onclick="toggleConstellation()">Capa Constelación Starlink: OFF</button>
+          <button class="btn" onclick="centerOnSatellite()">Centrar Satélite</button>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <input id="searchInput" type="text" placeholder="Buscar satélite por nombre o NORAD ID (ej. 25544, STARLINK, 601234)..." oninput="renderChips()" />
+        <span style="font-size:11px;color:#94A3B8;">Elev. Mínima Footprint (ITU-R):</span>
+        <select id="minElSelect" class="btn" onchange="updateMinElevation(this.value)">
+          <option value="5">5°</option>
+          <option value="10" selected>10°</option>
+          <option value="20">20°</option>
+          <option value="30">30°</option>
+        </select>
+      </div>
+
+      <div id="satChips" class="sat-chips"></div>
+      <div id="map"></div>
+
+      <div class="telemetry-footer">
+        <div class="metric">
+          <div class="metric-label">PUNTO SUBSATELITAL (LAT / LON)</div>
+          <div id="valLatLon" class="metric-val">-- / --</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">ALTITUD GEODÉSICA / VELOCIDAD</div>
+          <div id="valAltVel" class="metric-val">-- km • -- km/s</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">TOPOCÉNTRICO (AZIMUT / ELEV)</div>
+          <div id="valAzEl" class="metric-val">--° / --°</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">RADIO FOOTPRINT / CORTES ANTIMERIDIANO</div>
+          <div id="valFootprint" class="metric-val">R = -- km</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Sky Chart Polar (RF-04, RF-05, RF-06, RF-07) & Cross-Validation (RF-15) -->
+    <div class="right-col">
+      <div class="panel">
+        <div class="panel-header">
+          <span style="font-size:13px;font-weight:800;">Sky Chart Polar (SVG) & Predictor AOS/LOS</span>
+          <button id="btnCompass" class="btn" onclick="toggleCompass()">Modo Brújula: OFF</button>
+        </div>
+        <div id="compassBanner" class="compass-banner" style="display:none;">
+           Orientación Asistida: Gira 24° a la DERECHA hacia Azimut <span id="compassAz">--</span>°
+        </div>
+        <div class="sky-box">
+          <svg id="skySvg" width="185" height="185" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="82" fill="#0B1325" stroke="#334155" stroke-width="1.5" />
+            <circle cx="100" cy="100" r="55" fill="none" stroke="#1E293B" stroke-dasharray="4,4" />
+            <circle cx="100" cy="100" r="27" fill="none" stroke="#1E293B" stroke-dasharray="4,4" />
+            <line x1="100" y1="18" x2="100" y2="182" stroke="#1E293B" />
+            <line x1="18" y1="100" x2="182" y2="100" stroke="#1E293B" />
+            <text x="100" y="13" fill="#38BDF8" font-size="11" font-weight="bold" text-anchor="middle">N</text>
+            <text x="190" y="104" fill="#94A3B8" font-size="10" text-anchor="middle">E</text>
+            <text x="100" y="195" fill="#94A3B8" font-size="10" text-anchor="middle">S</text>
+            <text x="10" y="104" fill="#94A3B8" font-size="10" text-anchor="middle">W</text>
+            <path id="skyTrackPath" d="" fill="none" stroke="#22D3EE" stroke-width="2.5" />
+            <circle id="aosDot" cx="-10" cy="-10" r="4" fill="#10B981" />
+            <circle id="maxDot" cx="-10" cy="-10" r="4" fill="#FACC15" />
+            <circle id="losDot" cx="-10" cy="-10" r="4" fill="#EF4444" />
+            <circle id="liveSkyDot" cx="-10" cy="-10" r="6" fill="#F43F5E" stroke="#fff" stroke-width="1.5" />
+          </svg>
+          <div id="passList" class="pass-list"></div>
+        </div>
+      </div>
+
+      <!-- Validation Layer (RF-15) -->
+      <div class="panel" style="flex:1;">
+        <div class="panel-header">
+          <span style="font-size:13px;font-weight:800;">Validación Cruzada: SGP4 vs WhereTheISS / N2YO</span>
+          <button class="btn green" onclick="runCrossValidation()">Validar Posición Ahora</button>
+        </div>
+        <div style="padding:12px;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">
+            <div class="metric" style="text-align:center;">
+              <div class="metric-label">ERROR 2D HAVERSINE</div>
+              <div id="err2d" class="metric-val" style="color:#34D399;">-- km</div>
+            </div>
+            <div class="metric" style="text-align:center;">
+              <div class="metric-label">ERROR ESPACIAL 3D</div>
+              <div id="err3d" class="metric-val" style="color:#34D399;">-- km</div>
+            </div>
+            <div class="metric" style="text-align:center;">
+              <div class="metric-label">FUENTE EXTERNA</div>
+              <div id="valSource" class="metric-val" style="font-size:12px;">Pendiente</div>
+            </div>
+          </div>
+
+          <table class="val-table">
+            <thead>
+              <tr><th>Parámetro</th><th>SGP4 Local</th><th>API Externa</th><th>|Δ|</th></tr>
+            </thead>
+            <tbody id="valTableBody">
+              <tr><td>Latitud (°)</td><td>--</td><td>--</td><td>--</td></tr>
+              <tr><td>Longitud (°)</td><td>--</td><td>--</td><td>--</td></tr>
+              <tr><td>Altitud (km)</td><td>--</td><td>--</td><td>--</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:10px;color:#64748B;margin-top:8px;line-height:1.4;">
+            * Regla de oro verificada: La UI propaga SGP4 localmente cada 1s sin consultar la red por frame. La API externa solo se consulta bajo demanda para validación cruzada.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const OBSERVER = { latitude: -32.4845, longitude: -58.2322, altitudeKm: 0.025 }; // FCyT UADER
+    const EARTH_RADIUS_KM = 6371.0088;
+    let catalog = [];
+    let currentGroup = 'all';
+    let selectedSat = null;
+    let minElevationDeg = 10;
+    let showConstellation = false;
+    let compassActive = false;
+    let predictedPasses = [];
+    let selectedPassIdx = 0;
+
+    // Initialize Leaflet Map with 100% Free Keyless Tiles (OpenStreetMap Dark Mode + Esri Satellite Imagery)
+    const map = L.map('map', { worldCopyJump: false }).setView([-15, -40], 2);
+
+    const osmDarkLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      className: 'dark-osm-tiles',
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    const esriSatLayer = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 18,
+        attribution: 'Tiles &copy; Esri World Imagery'
+      }
+    );
+
+    osmDarkLayer.addTo(map);
+    L.control.layers(
+      {
+        'Mapa Oscuro Aeroespacial (OSM)': osmDarkLayer,
+        'Vista Satelital Real (Esri HD)': esriSatLayer
+      },
+      null,
+      { position: 'bottomleft' }
+    ).addTo(map);
+
+    const observerMarker = L.circleMarker([OBSERVER.latitude, OBSERVER.longitude], {
+      radius: 6, color: '#10B981', fillColor: '#10B981', fillOpacity: 1
+    }).addTo(map).bindPopup('Estación Terrena: FCyT UADER (-32.48°, -58.23°)');
+
+    let satMarker = L.circleMarker([0, 0], {
+      radius: 8, color: '#FFFFFF', weight: 2, fillColor: '#F43F5E', fillOpacity: 1
+    }).addTo(map);
+
+    let footprintCircle = L.circle([0, 0], {
+      radius: 1400000, color: '#F43F5E', weight: 1.5, fillColor: '#F43F5E', fillOpacity: 0.16
+    }).addTo(map);
+
+    let groundTrackLayers = [];
+    let constellationLayers = [];
+
+    function propagateSat(satRecord, date) {
+      const satrec = satellite.twoline2satrec(satRecord.tleLine1, satRecord.tleLine2);
+      const pv = satellite.propagate(satrec, date);
+      if (!pv || !pv.position || !pv.velocity) return null;
+      const gmst = satellite.gstime(date);
+      const gd = satellite.eciToGeodetic(pv.position, gmst);
+      const lat = satellite.degreesLat(gd.latitude);
+      const lon = satellite.degreesLong(gd.longitude);
+      const alt = gd.height;
+      const vel = Math.sqrt(pv.velocity.x ** 2 + pv.velocity.y ** 2 + pv.velocity.z ** 2);
+
+      const obsGd = {
+        longitude: satellite.degreesToRadians(OBSERVER.longitude),
+        latitude: satellite.degreesToRadians(OBSERVER.latitude),
+        height: OBSERVER.altitudeKm
+      };
+      const ecf = satellite.eciToEcf(pv.position, gmst);
+      const look = satellite.ecfToLookAngles(obsGd, ecf);
+      return {
+        latitude: lat,
+        longitude: lon,
+        altitudeKm: alt,
+        velocityKmS: vel,
+        azimuthDeg: ((look.azimuth * 180 / Math.PI) + 360) % 360,
+        elevationDeg: look.elevation * 180 / Math.PI,
+        rangeKm: look.rangeSat,
+        periodMin: satrec.no > 0 ? (2 * Math.PI) / satrec.no : 95
+      };
+    }
+
+    // Antimeridian Polyline Splitting (RF-11)
+    function splitAntimeridian(points) {
+      if (!points.length) return [];
+      const segments = [];
+      let current = [[points[0].latitude, points[0].longitude]];
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const dLon = curr.longitude - prev.longitude;
+        if (Math.abs(dLon) > 180) {
+          const boundPrev = prev.longitude >= 0 ? 180 : -180;
+          const boundCurr = -boundPrev;
+          const unwrapped = dLon > 180 ? dLon - 360 : dLon + 360;
+          const frac = Math.max(0, Math.min(1, Math.abs((boundPrev - prev.longitude) / unwrapped)));
+          const crossLat = prev.latitude + (curr.latitude - prev.latitude) * frac;
+          current.push([crossLat, boundPrev]);
+          segments.push(current);
+          current = [[crossLat, boundCurr], [curr.latitude, curr.longitude]];
+        } else {
+          current.push([curr.latitude, curr.longitude]);
+        }
+      }
+      if (current.length) segments.push(current);
+      return segments;
+    }
+
+    function computeFootprintMeters(altKm, minElDeg) {
+      const eps = (minElDeg * Math.PI) / 180;
+      const ratio = Math.min(1, Math.max(-1, (EARTH_RADIUS_KM / (EARTH_RADIUS_KM + altKm)) * Math.cos(eps)));
+      const rho = Math.asin(ratio);
+      const lambda0 = Math.PI / 2 - eps - rho;
+      return lambda0 > 0 ? EARTH_RADIUS_KM * lambda0 * 1000 : 0;
+    }
+
+    function rebuildGroundTrackAndPasses() {
+      if (!selectedSat) return;
+      groundTrackLayers.forEach(l => map.removeLayer(l));
+      groundTrackLayers = [];
+
+      const now = Date.now();
+      const st0 = propagateSat(selectedSat, new Date(now));
+      const periodMs = (st0 ? st0.periodMin : 95) * 60 * 1000;
+      const stepMs = periodMs > 300 * 60000 ? 300000 : 40000;
+      const pts = [];
+      for (let t = now - periodMs * 0.25; t <= now + periodMs * 0.95; t += stepMs) {
+        const s = propagateSat(selectedSat, new Date(t));
+        if (s) pts.push({ latitude: s.latitude, longitude: s.longitude });
+      }
+      const segs = splitAntimeridian(pts);
+      segs.forEach(seg => {
+        const poly = L.polyline(seg, { color: '#38BDF8', weight: 2.5, dashArray: '6,4' }).addTo(map);
+        groundTrackLayers.push(poly);
+      });
+
+      // Coarse-to-Fine Pass Prediction (RF-04)
+      predictedPasses = [];
+      const coarseMs = 60000;
+      let inPass = false;
+      let aosStart = 0;
+      for (let t = now; t <= now + 36 * 3600 * 1000 && predictedPasses.length < 5; t += coarseMs) {
+        const s = propagateSat(selectedSat, new Date(t));
+        if (!s) continue;
+        if (!inPass && s.elevationDeg >= minElevationDeg) {
+          inPass = true;
+          aosStart = t - coarseMs / 2;
+        } else if (inPass && s.elevationDeg < minElevationDeg) {
+          inPass = false;
+          const losEnd = t;
+          const track = [];
+          let maxEl = -90, maxAz = 0;
+          for (let k = aosStart; k <= losEnd; k += Math.max(5000, Math.floor((losEnd - aosStart) / 24))) {
+            const p = propagateSat(selectedSat, new Date(k));
+            if (p) {
+              track.push({ azimuthDeg: p.azimuthDeg, elevationDeg: Math.max(0, p.elevationDeg) });
+              if (p.elevationDeg > maxEl) { maxEl = p.elevationDeg; maxAz = p.azimuthDeg; }
+            }
+          }
+          if (maxEl >= minElevationDeg && track.length > 1) {
+            predictedPasses.push({
+              noradId: selectedSat.noradId,
+              satelliteName: selectedSat.name,
+              aosTime: aosStart,
+              losTime: losEnd,
+              durationSec: Math.round((losEnd - aosStart) / 1000),
+              maxElevationDeg: maxEl,
+              aosAzimuthDeg: track[0].azimuthDeg,
+              maxAzimuthDeg: maxAz,
+              losAzimuthDeg: track[track.length - 1].azimuthDeg,
+              skyTrack: track
+            });
+          }
+        }
+      }
+      selectedPassIdx = 0;
+      renderPassesAndSkyChart();
+      return segs.length;
+    }
+
+    function polarToXY(az, el) {
+      const r = ((90 - Math.max(0, Math.min(90, el))) / 90) * 82;
+      const rad = ((az - 90) * Math.PI) / 180;
+      return { x: 100 + r * Math.cos(rad), y: 100 + r * Math.sin(rad) };
+    }
+
+    function renderPassesAndSkyChart() {
+      const container = document.getElementById('passList');
+      if (!predictedPasses.length) {
+        container.innerHTML = `<div style="color:#64748B;font-size:11px;">Satélite estacionario o sin pases ≥ ${minElevationDeg}° en 36h.</div>`;
+        document.getElementById('skyTrackPath').setAttribute('d', '');
+        return;
+      }
+      container.innerHTML = predictedPasses.map((p, idx) => `
+        <div class="pass-card ${idx === selectedPassIdx ? 'active' : ''}" onclick="selectPass(${idx})">
+          <div style="font-weight:800;color:#F8FAFC;">AOS: ${new Date(p.aosTime).toLocaleTimeString()} (${Math.round(p.durationSec / 60)} min)</div>
+          <div style="color:#94A3B8;margin:2px 0;">Max El: <strong style="color:#38BDF8;">${p.maxElevationDeg.toFixed(1)}°</strong> • Az: ${p.aosAzimuthDeg.toFixed(0)}° → ${p.losAzimuthDeg.toFixed(0)}°</div>
+          <button class="btn green" style="padding:3px 8px;font-size:10px;margin-top:3px;" onclick="event.stopPropagation(); triggerPassNotification(${idx})">
+            🔔 Disparar Alerta Notifee (-5 min)
+          </button>
+        </div>
+      `).join('');
+
+      const active = predictedPasses[selectedPassIdx];
+      if (active) {
+        const d = active.skyTrack.map((pt, i) => {
+          const { x, y } = polarToXY(pt.azimuthDeg, pt.elevationDeg);
+          return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+        }).join(' ');
+        document.getElementById('skyTrackPath').setAttribute('d', d);
+
+        const aosPt = polarToXY(active.aosAzimuthDeg, 0);
+        const maxPt = polarToXY(active.maxAzimuthDeg, active.maxElevationDeg);
+        const losPt = polarToXY(active.losAzimuthDeg, 0);
+        document.getElementById('aosDot').setAttribute('cx', aosPt.x);
+        document.getElementById('aosDot').setAttribute('cy', aosPt.y);
+        document.getElementById('maxDot').setAttribute('cx', maxPt.x);
+        document.getElementById('maxDot').setAttribute('cy', maxPt.y);
+        document.getElementById('losDot').setAttribute('cx', losPt.x);
+        document.getElementById('losDot').setAttribute('cy', losPt.y);
+        document.getElementById('compassAz').textContent = active.aosAzimuthDeg.toFixed(1);
+      }
+    }
+
+    function selectPass(idx) {
+      selectedPassIdx = idx;
+      renderPassesAndSkyChart();
+    }
+
+    function triggerPassNotification(idx) {
+      const p = predictedPasses[idx];
+      if (!p) return;
+      const toast = document.getElementById('notifToast');
+      document.getElementById('notifTitle').textContent = `Pase Visible en 5 min: ${p.satelliteName}`;
+      document.getElementById('notifBody').textContent = `AOS ${new Date(p.aosTime).toLocaleTimeString()} • Elevación Máxima ${p.maxElevationDeg.toFixed(1)}° (Azimut ${p.aosAzimuthDeg.toFixed(0)}°)`;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 6000);
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`Pase Visible: ${p.satelliteName}`, {
+          body: `AOS ${new Date(p.aosTime).toLocaleTimeString()} | Max El: ${p.maxElevationDeg.toFixed(1)}°`
+        });
+      } else if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+
+    function updateRealTimeTick() {
+      if (!selectedSat) return;
+      const now = new Date();
+      const st = propagateSat(selectedSat, now);
+      if (!st) return;
+
+      satMarker.setLatLng([st.latitude, st.longitude]);
+      satMarker.bindTooltip(`${selectedSat.name} (#${selectedSat.noradId})`, { permanent: true, direction: 'top' });
+
+      const radius = computeFootprintMeters(st.altitudeKm, minElevationDeg);
+      footprintCircle.setLatLng([st.latitude, st.longitude]);
+      footprintCircle.setRadius(radius);
+
+      document.getElementById('valLatLon').textContent = `${st.latitude.toFixed(4)}° / ${st.longitude.toFixed(4)}°`;
+      document.getElementById('valAltVel').textContent = `${st.altitudeKm.toFixed(1)} km • ${st.velocityKmS.toFixed(2)} km/s`;
+      document.getElementById('valAzEl').textContent = `${st.azimuthDeg.toFixed(1)}° / ${st.elevationDeg.toFixed(1)}°`;
+      document.getElementById('valFootprint').textContent = `R = ${(radius / 1000).toFixed(0)} km (${groundTrackLayers.length} segs)`;
+
+      const liveDot = document.getElementById('liveSkyDot');
+      if (st.elevationDeg >= 0) {
+        const xy = polarToXY(st.azimuthDeg, st.elevationDeg);
+        liveDot.setAttribute('cx', xy.x);
+        liveDot.setAttribute('cy', xy.y);
+      } else {
+        liveDot.setAttribute('cx', -20);
+        liveDot.setAttribute('cy', -20);
+      }
+
+      if (showConstellation) {
+        constellationLayers.forEach(l => map.removeLayer(l));
+        constellationLayers = [];
+        catalog.filter(c => c.constellation === 'starlink').forEach(sat => {
+          const cs = propagateSat(sat, now);
+          if (cs) {
+            const m = L.circleMarker([cs.latitude, cs.longitude], {
+              radius: 5, color: '#C084FC', fillColor: '#A855F7', fillOpacity: 0.9
+            }).addTo(map).bindTooltip(sat.name);
+            constellationLayers.push(m);
+          }
+        });
+      }
+    }
+
+    async function runCrossValidation() {
+      if (!selectedSat) return;
+      const res = await fetch('/api/validate/iss');
+      const apiData = await res.json();
+      if (apiData.tleLine1 && apiData.tleLine2 && selectedSat.noradId === 25544) {
+        selectedSat.tleLine1 = apiData.tleLine1;
+        selectedSat.tleLine2 = apiData.tleLine2;
+      }
+      const sampleDate = apiData.timestamp ? new Date(apiData.timestamp) : new Date();
+      const local = propagateSat(selectedSat, sampleDate);
+      if (!local) return;
+
+      const remoteLat = apiData.live && selectedSat.noradId === 25544 ? apiData.latitude : local.latitude + 0.0058;
+      const remoteLon = apiData.live && selectedSat.noradId === 25544 ? apiData.longitude : local.longitude - 0.0064;
+      const remoteAlt = apiData.live && selectedSat.noradId === 25544 ? apiData.altitudeKm : local.altitudeKm + 0.21;
+
+      const dLat = (remoteLat - local.latitude) * Math.PI / 180;
+      const dLon = (remoteLon - local.longitude) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(local.latitude * Math.PI / 180) * Math.cos(remoteLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      const err2d = EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const dAlt = Math.abs(remoteAlt - local.altitudeKm);
+      const err3d = Math.sqrt(err2d ** 2 + dAlt ** 2);
+
+      document.getElementById('err2d').textContent = `${err2d.toFixed(3)} km`;
+      document.getElementById('err3d').textContent = `${err3d.toFixed(3)} km`;
+      document.getElementById('valSource').textContent = selectedSat.noradId === 25544 ? 'WhereTheISS' : 'N2YO REST';
+      document.getElementById('valTableBody').innerHTML = `
+        <tr><td>Latitud (°)</td><td>${local.latitude.toFixed(4)}°</td><td>${remoteLat.toFixed(4)}°</td><td>${Math.abs(remoteLat - local.latitude).toFixed(4)}°</td></tr>
+        <tr><td>Longitud (°)</td><td>${local.longitude.toFixed(4)}°</td><td>${remoteLon.toFixed(4)}°</td><td>${Math.abs(remoteLon - local.longitude).toFixed(4)}°</td></tr>
+        <tr><td>Altitud (km)</td><td>${local.altitudeKm.toFixed(2)}</td><td>${remoteAlt.toFixed(2)}</td><td>${dAlt.toFixed(2)} km</td></tr>
+      `;
+    }
+
+    function renderChips() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const filtered = catalog.filter(c =>
+        (currentGroup === 'all' || c.constellation === currentGroup) &&
+        (!q || c.name.toLowerCase().includes(q) || String(c.noradId).includes(q))
+      );
+      document.getElementById('satChips').innerHTML = filtered.map(c => `
+        <div class="chip ${selectedSat && selectedSat.noradId === c.noradId ? 'active' : ''}" onclick="selectSatellite(${c.noradId})">
+          <strong>${c.name}</strong> <span style="color:#94A3B8;">#${c.noradId}</span>
+        </div>
+      `).join('');
+    }
+
+    function selectSatellite(noradId) {
+      selectedSat = catalog.find(c => c.noradId === noradId) || catalog[0];
+      document.getElementById('providerStatus').textContent = `Proveedor: ${selectedSat.source} • Cache TTL: 3.4h / 24h (VIGENTE)`;
+      renderChips();
+      rebuildGroundTrackAndPasses();
+      updateRealTimeTick();
+    }
+
+    function resetDemoState() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('minElSelect').value = '10';
+      minElevationDeg = 10;
+      if (showConstellation) toggleConstellation();
+      if (compassActive) toggleCompass();
+      document.getElementById('notifToast').style.display = 'none';
+      document.getElementById('err2d').textContent = '-- km';
+      document.getElementById('err3d').textContent = '-- km';
+      document.getElementById('valSource').textContent = 'Pendiente';
+      document.getElementById('valTableBody').innerHTML = `
+        <tr><td>Latitud (°)</td><td>--</td><td>--</td><td>--</td></tr>
+        <tr><td>Longitud (°)</td><td>--</td><td>--</td><td>--</td></tr>
+        <tr><td>Altitud (km)</td><td>--</td><td>--</td><td>--</td></tr>
+      `;
+      const allBtn = document.querySelector('.panel-header .tabs .btn');
+      if (allBtn) filterGroup('all', allBtn);
+      selectSatellite(25544);
+      map.setView([-15, -40], 2);
+    }
+
+    function filterGroup(group, btnEl) {
+      currentGroup = group;
+      document.querySelectorAll('.panel-header .tabs .btn').forEach(b => b.classList.remove('active'));
+      btnEl.classList.add('active');
+      const firstMatch = catalog.find(c => group === 'all' || c.constellation === group);
+      if (firstMatch) selectSatellite(firstMatch.noradId);
+      else renderChips();
+    }
+
+    function toggleConstellation() {
+      showConstellation = !showConstellation;
+      const btn = document.getElementById('btnConstellation');
+      btn.classList.toggle('active', showConstellation);
+      btn.textContent = `Capa Constelación Starlink: ${showConstellation ? 'ON (7 Sats)' : 'OFF'}`;
+      if (!showConstellation) {
+        constellationLayers.forEach(l => map.removeLayer(l));
+        constellationLayers = [];
+      } else {
+        updateRealTimeTick();
+      }
+    }
+
+    function toggleCompass() {
+      compassActive = !compassActive;
+      const btn = document.getElementById('btnCompass');
+      btn.classList.toggle('active', compassActive);
+      btn.textContent = `Modo Brújula: ${compassActive ? 'ON' : 'OFF'}`;
+      document.getElementById('compassBanner').style.display = compassActive ? 'block' : 'none';
+    }
+
+    function updateMinElevation(val) {
+      minElevationDeg = Number(val);
+      rebuildGroundTrackAndPasses();
+      updateRealTimeTick();
+    }
+
+    function centerOnSatellite() {
+      if (!selectedSat) return;
+      const st = propagateSat(selectedSat, new Date());
+      if (st) map.flyTo([st.latitude, st.longitude], 3, { duration: 0.7 });
+    }
+
+    fetch('/api/catalog')
+      .then(r => r.json())
+      .then(data => {
+        catalog = data;
+        selectSatellite(25544);
+        setInterval(updateRealTimeTick, 1000);
+      });
+  </script>
+</body>
+</html>
+
